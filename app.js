@@ -1,10 +1,14 @@
 const express = require("express");
 const app = express();
 const mongoose = require("mongoose");
-const Listing = require("./models/listing.js");
 const path = require("path");
 const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate");
+const ExpressError = require("./utils/ExpressError.js");
+
+const listings = require("./routes/listing.js");
+const reviews = require("./routes/review.js");
+
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "/views"));
@@ -29,53 +33,9 @@ app.get("/", (req, res) => {
   res.send("Hi I'm root");
 });
 
-// Index Route------------------->
-app.get("/listings", async (req, res) => {
-  const allListings = await Listing.find({});
-  res.render("listings/index.ejs", {allListings});
-});
+app.use("/listings", listings);
 
-// New Route-------------------->
-app.get("/listings/new", (req, res) => {
-  res.render("listings/new.ejs")
-});
-
-// Show Route------------------>
-app.get("/listings/:id", async (req, res) => {
-  let { id } = req.params;
-  const listing = await Listing.findById(id);
-  res.render("listings/show.ejs", { listing });
-});
-
-// Create Route-------------------->
-app.post("/listings", async (req, res) => {
-  const newListing = new Listing(req.body.listing);
-  await newListing.save();
-  res.redirect("/listings");
-});
-
-// Edit Route----------------------->
-app.get("/listings/:id/edit", async (req, res) => {
-  let { id } = req.params;
-  const listing = await Listing.findById(id);
-  res.render("listings/edit.ejs", { listing });
-});
-
-// Update Route------------------------->
-app.put("/listings/:id", async (req, res) => {
-  let { id } = req.params;
-  await Listing.findByIdAndUpdate(id, { ...req.body.listing });
-  res.redirect(`/listings/${id}`);
-});
-
-// Delete Route ------------------------->
-app.delete("/listings/:id", async (req, res) => {
-  let { id } = req.params;
-  let deletedListing = await Listing.findByIdAndDelete(id);
-  console.log(deletedListing);
-  res.redirect("/listings");
-});
-
+app.use("/listings/:id/reviews", reviews);
 
 
 // Basic data entry to db-------------->
@@ -95,6 +55,16 @@ app.delete("/listings/:id", async (req, res) => {
 // });
 //  res.send("Successful");
 //  });
+
+app.all("*", (req, res, next) => {
+  next(new ExpressError(404, "Page not found"));
+});
+
+app.use((err, req, res, next) => {
+  let { statusCode =500, message = "Something went wrong!" } = err;
+  // res.status(statusCode).send(message);
+  res.status(statusCode).render("error.ejs", {message});
+});
 
 app.listen(8080, () => {
   console.log("server is listening to port 8080");
